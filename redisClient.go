@@ -26,8 +26,12 @@ func StoreUrl(newUrl Url) error {
 		return err
 	}
 
-	return redisClient.MSet(ctx, key, marshalledCurrency).Err()
+	redisClient.RPush(ctx, "urls", marshalledCurrency).Err()
 
+	if err != nil {
+		fmt.Println("error in adding to sorted set", err)
+	}
+	return redisClient.MSet(ctx, key, marshalledCurrency).Err()
 }
 
 func FetchUrl(key string) (Url, error) {
@@ -59,4 +63,61 @@ func FetchUrl(key string) (Url, error) {
 	}
 
 	return url, nil
+}
+
+func FetchAllUrl(page int) ([]Url, error) {
+
+	redisClient, err := GetClient()
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	pageSize := 2
+	start := (page - 1) * pageSize
+	stop := start + pageSize - 1
+
+	ctx := context.Background()
+
+	result, err := redisClient.LRange(ctx, "urls", int64(start), int64(stop)).Result()
+	fmt.Println(result)
+	if err != nil {
+		fmt.Println("error in fetching values")
+		fmt.Println(err)
+		return nil, err
+	}
+
+	urls := make([]Url, len(result))
+
+	for i, item := range result {
+
+		var url Url
+
+		json.Unmarshal([]byte(item), &url)
+
+		urls[i] = url
+	}
+
+	return urls, nil
+}
+
+func DeleteUrl(key string) error {
+	redisClient, err := GetClient()
+
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	ctx := context.Background()
+
+	_, err = redisClient.Del(ctx, key).Result()
+
+	if err != nil {
+		fmt.Println("error in deleting key from redis")
+		return err
+	}
+
+	fmt.Printf("deleted key %s ", key)
+	return nil
 }
