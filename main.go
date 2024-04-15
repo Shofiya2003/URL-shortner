@@ -27,7 +27,7 @@ func PingServer(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "url shortner apis!"})
 }
 
-func postURL(c *gin.Context) {
+func PostURLHandler(c *gin.Context) {
 	var newUrl Url
 
 	err := c.BindJSON(&newUrl)
@@ -46,7 +46,7 @@ func postURL(c *gin.Context) {
 	longUrl := newUrl.LongUrl
 	crc32q := crc32.MakeTable(0xD5828281)
 	hash := crc32.Checksum([]byte(longUrl), crc32q)
-	fmt.Println(hash)
+
 	// add logic to handle duplicate key from a different long url
 	hashString := fmt.Sprintf("%08x", hash)
 	// check if the long url already exists
@@ -54,12 +54,10 @@ func postURL(c *gin.Context) {
 
 	if err != nil {
 		fmt.Println(err)
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{"err": "could not fetch url"})
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"err": err.Error()})
 		return
 	}
 
-	fmt.Println(hashString)
-	fmt.Println(hash)
 	if fetchedUrl.LongUrl != newUrl.LongUrl {
 		newUrl.Key = hashString
 		newUrl.ShortUrl = fmt.Sprintf("http://localhost:8000/%x", hash)
@@ -75,7 +73,7 @@ func postURL(c *gin.Context) {
 		newUrl.ShortUrl = fetchedUrl.ShortUrl
 	}
 
-	c.IndentedJSON(http.StatusOK, gin.H{"key": newUrl.Key, "long_url": newUrl.LongUrl, "short_url": newUrl.ShortUrl})
+	c.IndentedJSON(http.StatusCreated, newUrl)
 }
 
 func redirect(c *gin.Context) {
@@ -99,7 +97,7 @@ func redirect(c *gin.Context) {
 
 }
 
-func deleteUrl(c *gin.Context) {
+func DeleteUrlHandler(c *gin.Context) {
 	key := c.Param("key")
 
 	err := DeleteUrl(key)
@@ -110,10 +108,10 @@ func deleteUrl(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusAccepted)
+	c.Status(http.StatusOK)
 }
 
-func listAllUrl(c *gin.Context) {
+func ListAllUrlHandler(c *gin.Context) {
 	pageQuery := c.Query("page")
 
 	if pageQuery == "" {
@@ -152,10 +150,10 @@ func main() {
 	}
 
 	router.GET("/ping", PingServer)
-	router.POST("/", postURL)
+	router.POST("/", PostURLHandler)
 	router.GET("/:key", redirect)
-	router.POST("/all", listAllUrl)
-	router.DELETE("/:key", deleteUrl)
+	router.POST("/all", ListAllUrlHandler)
+	router.DELETE("/:key", DeleteUrlHandler)
 	router.Run("localhost:8000")
 
 }

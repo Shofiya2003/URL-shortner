@@ -80,7 +80,7 @@ func FetchAllUrl(page int) ([]Url, error) {
 	ctx := context.Background()
 
 	result, err := redisClient.LRange(ctx, "urls", int64(start), int64(stop)).Result()
-	fmt.Println(result)
+
 	if err != nil {
 		fmt.Println("error in fetching values")
 		fmt.Println(err)
